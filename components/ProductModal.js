@@ -1,0 +1,289 @@
+import { useState, useMemo, useEffect } from 'react';
+import Image from 'next/image';
+import { X, Check, PenLine } from 'lucide-react';
+
+// ✅ Helper para formatear precios sin decimales sucios.
+function formatPrice(amount) {
+  const rounded = Math.round(amount * 100) / 100
+  return rounded % 1 === 0
+    ? rounded.toLocaleString('es-AR')
+    : rounded.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+// ✅ YEW FIX: Parsea el porcentaje de discount_value de forma tolerante.
+// Soporta el formato viejo ('50% OFF', '70% 2da') y el nuevo ('50', '70').
+// parseFloat('50% OFF') → NaN, pero parseFloat('50') → 50.
+// Esta función extrae solo los dígitos numéricos del inicio del string.
+function parsePct(val) {
+  const num = parseFloat(String(val).replace(/[^0-9.]/g, ''));
+  return isNaN(num) ? 0 : num;
+}
+
+export default function ProductModal({ product, isOpen, onClose, onAddToCart }) {
+  const [selectedOptions, setSelectedOptions] = useState({});
+  const [qty, setQty] = useState(1);
+  const [note, setNote] = useState('');
+
+  // 1. Reiniciar estado al abrir
+  useEffect(() => {
+    if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedOptions({});
+      setQty(1);
+      setNote('');
+    }
+  }, [isOpen, product]);
+
+  const groups = product?.modifiers || [];
+
+  // 2. Calcular precio unitario
+  const unitPrice = useMemo(() => {
+    if (!product) return 0;
+
+    // Calcular precio base con oferta
+    const rawPrice = Number(product.price);
+    const offer = product.special_offers;
+    let basePrice = rawPrice;
+
+    if (offer?.is_active) {
+      if (offer.type === 'percent' || offer.type === 'percentage') {
+        const pct = parsePct(offer.discount_value);
+        basePrice = Math.round(rawPrice * (1 - pct / 100));
+      } else if (offer.type === 'fixed') {
+        basePrice = Math.max(0, rawPrice - Number(offer.discount_value));
+      } else if (offer.type === 'fixed_price') {
+        basePrice = Number(offer.discount_value);
+      }
+      // nxm, 2x1, second_unit: el descuento es multi-unidad, el precio base no cambia
+    }
+
+    let extraCost = 0;
+    groups.forEach(group => {
+      const options = group.modifier_options || [];
+      options.forEach(opt => {
+        if (selectedOptions[opt.id]) {
+          extraCost += Number(opt.price);
+        }
+      });
+    });
+    return Math.round((basePrice + extraCost) * 100) / 100;
+  }, [product, selectedOptions, groups]);
+
+  if (!isOpen || !product) return null;
+
+  // 3. Handlers
+  const handleToggleOption = (group, option) => {
+    if (group.min_selection === 1 && group.max_selection === 1) {
+      // Radio (selección única)
+      const newSelection = { ...selectedOptions };
+      group.modifier_options.forEach(o => delete newSelection[o.id]);
+      newSelection[option.id] = true;
+      setSelectedOptions(newSelection);
+    } else {
+      // Checkbox (selección múltiple)
+      setSelectedOptions(prev => {
+        const isSelected = !!prev[option.id];
+        const currentCount = group.modifier_options.filter(o => prev[o.id]).length;
+
+        if (isSelected) {
+          const newState = { ...prev };
+          delete newState[option.id];
+          return newState;
+        } else {
+          if (group.max_selection && currentCount >= group.max_selection) {
+            return prev; // Límite alcanzado
+          }
+          return { ...prev, [option.id]: true };
+        }
+      });
+    }
+  };
+
+  const handleAddToOrder = () => {
+    // Validar obligatorios
+    const missingRequired = groups.filter(g => {
+      if (g.min_selection > 0) {
+        const count = g.modifier_options.filter(o => selectedOptions[o.id]).length;
+        return count < g.min_selection;
+      }
+      return false;
+    });
+
+    if (missingRequired.length > 0) {
+      alert(`⚠️ Por favor selecciona opciones en: ${missingRequired[0].name}`);
+      return;
+    }
+
+    // Preparar lista de opciones elegidas
+    const optionsList = [];
+    groups.forEach(g => {
+      g.modifier_options.forEach(o => {
+        if (selectedOptions[o.id]) {
+          optionsList.push({ name: o.name, price: o.price });
+        }
+      });
+    });
+
+    onAddToCart({
+      ...product,
+      selectedOptions: optionsList,
+      price: unitPrice, // Ya viene redondeado del useMemo
+      quantity: qty,
+      note: note
+    });
+    onClose();
+  };
+
+  // ✅ FIX: Calculamos el total para mostrar en el botón usando el helper,
+  // evitando que aparezca "$1250.0000000002" cuando hay extras con decimales.
+  // Antes: ${unitPrice * qty}  →  podía dar "1250.1000000000001"
+  // Ahora: formatPrice(unitPrice * qty)  →  siempre da "1.250,10" o "1.250"
+  const totalDisplay = formatPrice(unitPrice * qty)
+
+  // 4. Renderizado
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[#0F5B69]/60 backdrop-blur-sm animate-in fade-in">
+
+      <div className="bg-[#FFFFFF] w-full max-w-lg rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-[0_10px_40px_rgb(15,91,105,0.2)] flex flex-col max-h-[95vh] sm:max-h-[90vh] border border-[#0F5B69]/10 text-[#0F5B69]">
+
+        {/* Imagen Header */}
+        <div className="relative h-40 sm:h-56 bg-[#EFE9DF] shrink-0 overflow-hidden">
+          {product.image_url ? (
+            <Image 
+                src={product.image_url} 
+                alt={product.name} 
+                fill 
+                priority
+                className="object-cover" 
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-[#0F5B69]/5 text-[#0F5B69]/20">🛍️</div>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute top-4 right-4 bg-[#FFFFFF]/80 hover:bg-[#FFFFFF] text-[#0F5B69] p-2 rounded-full transition border border-[#0F5B69]/10 shadow-sm"
+          >
+            <X size={20} />
+          </button>
+          <div className="absolute bottom-0 w-full h-20 bg-gradient-to-t from-[#FFFFFF] to-transparent"></div>
+        </div>
+
+        {/* Scroll Content */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 sm:space-y-6 bg-[#FFFFFF] custom-scrollbar">
+
+          {/* Info Producto */}
+          <div>
+            <div className="flex justify-between items-start mb-2">
+              <h2 className="text-2xl sm:text-3xl font-black text-[#0F5B69] uppercase italic tracking-tighter leading-none">{product.name}</h2>
+              {product.stock !== null && product.stock !== undefined && (
+                <span className={`text-[10px] font-black px-2 py-1 rounded border uppercase tracking-widest ${product.stock <= 0 ? 'bg-[#0F5B69] text-white border-[#0F5B69]' : product.stock <= 5 ? 'bg-yellow-500 text-black border-yellow-500 animate-pulse' : 'bg-green-100 text-green-700 border-green-200'}`}>
+                  {product.stock <= 0 ? 'Agotado' : product.stock <= 5 ? `¡Casi Agotado! (${product.stock})` : `En Stock: ${product.stock}`}
+                </span>
+              )}
+            </div>
+            <p className="text-[#0F5B69]/70 text-sm leading-relaxed">{product.description}</p>
+          </div>
+
+          <hr className="border-[#0F5B69]/10" />
+
+          {/* Extras */}
+          {groups.length > 0 ? (
+            groups.map(group => (
+              <div key={group.id} className="space-y-3">
+                <div className="flex justify-between items-end">
+                  <h3 className="font-bold text-[#0F5B69]/60 uppercase text-[10px] tracking-widest">{group.name}</h3>
+                  <div className="flex gap-2">
+                    {group.min_selection > 0 && (
+                      <span className="text-[10px] bg-[#D85421]/10 text-[#D85421] px-2 py-0.5 rounded border border-[#D85421]/20 font-bold uppercase tracking-widest">Obligatorio</span>
+                    )}
+                    {group.max_selection > 1 && (
+                      <span className="text-[10px] text-[#0F5B69]/50 font-bold bg-[#0F5B69]/5 px-2 py-0.5 rounded border border-[#0F5B69]/10">Max: {group.max_selection}</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {group.modifier_options?.map(option => {
+                    const isSelected = !!selectedOptions[option.id];
+                    return (
+                      <div
+                        key={option.id}
+                        onClick={() => option.is_available && handleToggleOption(group, option)}
+                        className={`flex justify-between items-center p-3 rounded-xl border cursor-pointer transition-all active:scale-[0.98] 
+                          ${!option.is_available ? 'opacity-40 grayscale cursor-not-allowed bg-[#EFE9DF]/50' : ''}
+                          ${isSelected ? 'border-[#D85421] bg-[#D85421]/5 shadow-[0_4px_10px_rgb(216,84,33,0.1)]' : 'border-[#0F5B69]/10 bg-[#FFFFFF] hover:border-[#D85421]/30'}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${isSelected ? 'border-[#D85421] bg-[#D85421] text-white' : 'border-[#0F5B69]/20 bg-transparent'}`}>
+                            {isSelected && <Check size={12} strokeWidth={4} />}
+                          </div>
+                          <span className={`font-bold text-sm uppercase tracking-tight ${isSelected ? 'text-[#D85421]' : 'text-[#0F5B69]/70'}`}>{option.name}</span>
+                        </div>
+                        <span className={`text-sm font-black ${isSelected ? 'text-[#D85421]' : 'text-[#0F5B69]/40'}`}>
+                          {Number(option.price) > 0 ? `+$${formatPrice(Number(option.price))}` : 'Gratis'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-center text-[#0F5B69]/40 text-xs italic">Este producto no tiene agregados extra.</p>
+          )}
+
+          {/* SECCIÓN NOTA DE PEDIDO */}
+          <div className="bg-[#EFE9DF]/50 p-5 rounded-2xl border border-[#0F5B69]/10">
+            <div className="flex items-center gap-2 mb-3">
+              <PenLine size={14} className="text-[#D85421]" />
+              <h3 className="font-black text-[#0F5B69]/60 text-[10px] uppercase tracking-[0.2em]">¿Alguna aclaración?</h3>
+            </div>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              className="w-full bg-[#FFFFFF] border border-[#0F5B69]/10 rounded-xl p-4 text-[#0F5B69] text-sm focus:border-[#D85421] outline-none placeholder-[#0F5B69]/30 resize-none transition-all focus:ring-4 focus:ring-[#D85421]/10 shadow-sm"
+              rows="2"
+              placeholder="Ej: Para regalo, sin aderezo..."
+            />
+          </div>
+
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 sm:p-6 bg-[#FFFFFF] border-t border-[#0F5B69]/10 z-10 shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center bg-[#EFE9DF] border border-[#0F5B69]/10 rounded-xl p-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => setQty(Math.max(1, qty - 1))}
+                className="w-10 h-10 flex items-center justify-center font-bold text-lg text-[#0F5B69]/60 hover:text-[#0F5B69] transition active:scale-90"
+              >-</button>
+              <span className="w-8 text-center font-bold text-[#0F5B69] text-lg">{qty}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (product.stock === undefined || product.stock === null || qty < product.stock) {
+                    setQty(qty + 1)
+                  }
+                }}
+                className={`w-10 h-10 flex items-center justify-center font-bold text-lg transition active:scale-90 ${product.stock !== undefined && product.stock !== null && qty >= product.stock ? 'text-[#0F5B69]/20 cursor-not-allowed' : 'text-[#0F5B69]/60 hover:text-[#0F5B69]'}`}
+              >+</button>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleAddToOrder}
+              disabled={product.stock === 0}
+              className="flex-1 bg-[#D85421] hover:bg-[#ba4419] text-white font-black py-3.5 sm:py-4 rounded-xl text-base sm:text-lg flex justify-between px-5 sm:px-6 shadow-[0_4px_15px_rgb(216,84,33,0.3)] transition-all active:scale-95 border border-[#D85421] disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed uppercase tracking-widest"
+            >
+              <span>{product.stock === 0 ? 'AGOTADO' : 'AGREGAR'}</span>
+              <span>${totalDisplay}</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
