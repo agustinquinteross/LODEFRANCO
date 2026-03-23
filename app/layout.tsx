@@ -16,8 +16,8 @@ const greatVibes = Great_Vibes({
 });
 
 export const metadata = {
-  title: 'Lo de Franco',
-  description: 'El mejor kiosco de Catamarca. Todo lo que necesitas en un solo lugar.',
+  title: 'American Pizza',
+  description: 'La mejor pizzería. Todo lo que necesitas en un solo lugar.',
   icons: {
     icon: '/logo_v2.png'
   },

@@ -173,11 +173,11 @@ export default function Home() {
         <div className="absolute inset-0 opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] bg-repeat"></div>
         <div className="relative z-10 flex flex-col items-center">
           <div className="mb-8 hover:scale-105 transition-transform duration-700 relative">
-             <Image src="/logo_v2.png" alt="Lo de Franco" width={256} height={200} className="w-56 sm:w-64 object-contain drop-shadow-xl" />
+             <Image src="/logo_v2.png" alt="American Pizza" width={256} height={200} className="w-56 sm:w-64 object-contain drop-shadow-xl" />
           </div>
           <h1 className="text-4xl sm:text-5xl font-black italic tracking-tighter mb-4 text-[#D85421]">CERRADO</h1>
           <p className="text-[#0F5B69]/70 font-medium mb-8 max-w-sm text-sm sm:text-base">
-            El kiosco se encuentra cerrado por el momento.
+            La pizzería se encuentra cerrada por el momento.
           </p>
           <div className="bg-[#D85421] px-6 py-3 rounded-2xl shadow-lg border border-[#D85421]/20 flex items-center gap-3">
              <Clock size={20} className="text-white animate-pulse" />
@@ -200,7 +200,7 @@ export default function Home() {
             50% { transform: translateY(-6px); }
           }
         `}} />
-        <Image src="/logo_v2.png" alt="Lo de Franco" width={260} height={200} priority className="w-full max-w-[260px] px-4 object-contain drop-shadow-xl select-none" style={{ animation: 'gentleFloat 4s ease-in-out infinite' }} />
+        <Image src="/logo_v2.png" alt="American Pizza" width={260} height={200} priority className="w-full max-w-[260px] px-4 object-contain drop-shadow-xl select-none" style={{ animation: 'gentleFloat 4s ease-in-out infinite' }} />
       </div>
 
       {/* BARRA DE NAVEGACIÓN STICKY */}
@@ -326,13 +326,13 @@ export default function Home() {
       <footer className="bg-[#FFFFFF] text-[#0F5B69] border-t border-[#0F5B69]/10 mt-12 py-12 px-6 shadow-[0_-4px_20px_rgb(15,91,105,0.05)]">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center md:items-start gap-10">
           <div className="text-center md:text-left">
-            <Image src="/logo_v2.png" alt="Lo de Franco" width={80} height={80} className="h-20 w-auto opacity-90 mx-auto md:mx-0 object-contain drop-shadow" />
-            <p className="text-[#0F5B69]/70 font-bold text-sm mt-4">El mejor kiosco,<br />directo a donde estés.</p>
+            <Image src="/logo_v2.png" alt="American Pizza" width={80} height={80} className="h-20 w-auto opacity-90 mx-auto md:mx-0 object-contain drop-shadow" />
+            <p className="text-[#0F5B69]/70 font-bold text-sm mt-4">La mejor pizzería,<br />directo a donde estés.</p>
           </div>
 
           <div className="flex flex-col items-center md:items-end gap-4">
             <div className="text-center md:text-right space-y-1">
-              <p className="text-[#0F5B69] font-black text-sm">Tu Kiosco 24hs</p>
+              <p className="text-[#0F5B69] font-black text-sm">Tu Pizzería 24hs</p>
               <p className="text-[#0F5B69]/60 text-[10px] sm:text-xs uppercase tracking-widest leading-relaxed">Domingos a Jueves: 19:30 a 01:00<br/>Viernes y Sábados: 19:30 a 02:00</p>
             </div>
             <div className="flex gap-4">
@@ -348,7 +348,7 @@ export default function Home() {
           </div>
         </div>
         <div className="max-w-6xl mx-auto text-center text-[#0F5B69]/40 font-bold text-xs mt-10 pt-6 border-t border-[#0F5B69]/10 flex flex-col md:flex-row justify-between items-center gap-2">
-          <span>© 2026 Lo de Franco. Todos los derechos reservados.</span>
+          <span>© 2026 American Pizza. Todos los derechos reservados.</span>
           <span>Creado por Pulso.app</span>
         </div>
       </footer>
